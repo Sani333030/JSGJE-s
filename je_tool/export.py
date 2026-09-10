@@ -5,6 +5,7 @@ batch export is a period listing/support schedule."""
 from __future__ import annotations
 
 import sqlite3
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -15,6 +16,14 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from . import entries as entries_module
 
 STYLES = getSampleStyleSheet()
+
+
+def _p(text: str, style) -> Paragraph:
+    """A Paragraph flowable parses its text as mini-XML, so free-text
+    fields (description, reason, warnings -- anything a preparer typed)
+    must be escaped first, or a stray '&'/'<' renders garbled instead of
+    raising an error."""
+    return Paragraph(escape(text), style)
 
 
 def _entry_header_table(entry: sqlite3.Row, preparer_name: str, reviewer_name: str | None) -> Table:
@@ -85,13 +94,13 @@ def export_entry_pdf(
 
     doc = SimpleDocTemplate(outpath, pagesize=letter, topMargin=0.6 * inch, bottomMargin=0.6 * inch)
     story = [
-        Paragraph(f"{org_name} -- Journal Entry Support", STYLES["Title"]),
+        _p(f"{org_name} -- Journal Entry Support", STYLES["Title"]),
         Spacer(1, 0.15 * inch),
-        Paragraph(entry["description"], STYLES["Heading3"]),
+        _p(entry["description"], STYLES["Heading3"]),
         _entry_header_table(entry, preparer_name, reviewer_name),
         Spacer(1, 0.15 * inch),
         Paragraph("<b>Reason / Justification</b>", STYLES["Normal"]),
-        Paragraph(entry["reason"], STYLES["Normal"]),
+        _p(entry["reason"], STYLES["Normal"]),
         Spacer(1, 0.15 * inch),
         _lines_table(lines),
     ]
@@ -100,13 +109,13 @@ def export_entry_pdf(
         story += [
             Spacer(1, 0.15 * inch),
             Paragraph("<b>System warnings raised at creation</b>", STYLES["Normal"]),
-            Paragraph(entry["creation_warnings"], STYLES["Normal"]),
+            _p(entry["creation_warnings"], STYLES["Normal"]),
         ]
     if entry["review_note"]:
         story += [
             Spacer(1, 0.15 * inch),
             Paragraph("<b>Review note</b>", STYLES["Normal"]),
-            Paragraph(entry["review_note"], STYLES["Normal"]),
+            _p(entry["review_note"], STYLES["Normal"]),
         ]
 
     doc.build(story)
@@ -124,8 +133,8 @@ def export_period_listing_pdf(
 
     doc = SimpleDocTemplate(outpath, pagesize=letter, topMargin=0.6 * inch, bottomMargin=0.6 * inch)
     story = [
-        Paragraph(f"{org_name} -- Journal Entry Listing", STYLES["Title"]),
-        Paragraph(period_label, STYLES["Heading3"]),
+        _p(f"{org_name} -- Journal Entry Listing", STYLES["Title"]),
+        _p(period_label, STYLES["Heading3"]),
         Spacer(1, 0.15 * inch),
     ]
 
